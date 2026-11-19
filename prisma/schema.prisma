@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TrialStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  IGNORED
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  trials    Trial[]
+  rules     CommentRule[]
+  comments  Comment[]
+}
+
+model Trial {
+  id        String      @id @default(cuid())
+  accountId String
+  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status    TrialStatus @default(ACTIVE)
+  startsAt  DateTime    @default(now())
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+
+  @@index([accountId, status, expiresAt])
+}
+
+model CommentRule {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  keyword   String
+  response  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, keyword])
+}
+
+model Comment {
+  id          String        @id @default(cuid())
+  accountId   String
+  account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  externalId  String?
+  authorName  String?
+  content     String
+  draftReply  String?
+  status      CommentStatus @default(PENDING)
+  receivedAt  DateTime      @default(now())
+  handledAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@unique([accountId, externalId])
+  @@index([accountId, status, receivedAt])
+}
